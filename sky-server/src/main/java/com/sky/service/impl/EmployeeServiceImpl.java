@@ -1,18 +1,26 @@
 package com.sky.service.impl;
 
 import com.sky.constant.MessageConstant;
+import com.sky.constant.PasswordConstant;
 import com.sky.constant.StatusConstant;
+import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
 import com.sky.entity.Employee;
+import com.sky.exception.AccountAlreadyExistsException;
 import com.sky.exception.AccountLockedException;
 import com.sky.exception.AccountNotFoundException;
 import com.sky.exception.PasswordErrorException;
 import com.sky.mapper.EmployeeMapper;
 import com.sky.service.EmployeeService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
+import java.time.LocalDateTime;
+
+@Slf4j
 @Service
 public class EmployeeServiceImpl implements EmployeeService {
 
@@ -54,5 +62,35 @@ public class EmployeeServiceImpl implements EmployeeService {
         //3、返回实体对象
         return employee;
     }
+
+
+    public void save(EmployeeDTO employeeSaveDTO) {
+        log.info("开始新增员工，用户名：{}", employeeSaveDTO.getUsername());
+        
+        // 检查用户名是否已存在
+        Employee employee = employeeMapper.getByUsername(employeeSaveDTO.getUsername());
+        log.info("查询结果：{}", employee == null ? "用户名不存在，可以新增" : "用户名已存在，员工ID=" + employee.getId());
+        
+        if (employee != null) {
+            // 用户名已存在，抛出异常
+            throw new AccountAlreadyExistsException(MessageConstant.USERNAME_ALREADY_EXISTS);
+        }
+
+        Employee newEmployee = new Employee();
+        BeanUtils.copyProperties(employeeSaveDTO, newEmployee);
+
+        newEmployee.setPassword(DigestUtils.md5DigestAsHex(PasswordConstant.DEFAULT_PASSWORD.getBytes()));
+
+        newEmployee.setStatus(StatusConstant.ENABLE);
+
+        newEmployee.setCreateTime(LocalDateTime.now());
+        newEmployee.setUpdateTime(LocalDateTime.now());
+
+        newEmployee.setCreateUser(10L);
+        newEmployee.setUpdateUser(10L);
+
+        employeeMapper.insert(newEmployee);
+    }
+
 
 }
